@@ -11,10 +11,21 @@
     <!-- Manifesto PWA -->
     <link rel="manifest" href="manifest.json" id="pwa-manifest">
     <style>
+        /* Ajuste do fluxo de tela vs impressão para evitar páginas em branco */
+        #secao-impressao { display: none; }
+        
         @media print {
             body * { visibility: hidden; }
             #secao-impressao, #secao-impressao * { visibility: visible; }
-            #secao-impressao { position: absolute; left: 0; top: 0; width: 58mm; font-family: monospace; font-size: 12px; }
+            #secao-impressao { 
+                display: block !important; 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                width: 58mm; 
+                font-family: monospace; 
+                font-size: 12px; 
+            }
             .no-print { display: none !important; }
         }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
@@ -196,7 +207,7 @@
     </div>
 
     <!-- Seção de Impressão Oculta (Usada apenas pela impressora térmica do Admin) -->
-    <div id="secao-impressao" class="hidden">
+    <div id="secao-impressao">
         <div class="text-center pb-2" style="border-b: 1px dashed #000;">
             <p class="font-bold uppercase" id="cupom-nome-estabelecimento">MEU RESTAURANTE</p>
             <p style="font-size: 10px;">Cacimba de Dentro - PB</p>
