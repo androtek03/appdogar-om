@@ -51,6 +51,16 @@
         <!-- VISÃO: PAINEL GARÇOM / ADMIN -->
         <div id="visao-garcom" class="space-y-6">
             
+            <!-- SEÇÃO NOVA: Monitor de Pedidos em Tempo Real -->
+            <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                <h2 class="text-sm font-bold text-amber-600 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="bell" class="w-4 h-4 animate-bounce"></i> Pedidos Pendentes (Admin)
+                </h2>
+                <div id="painel-pedidos-admin" class="space-y-3 max-h-80 overflow-y-auto custom-scroll pr-1">
+                    <!-- Pedidos vindos do Firebase entram aqui -->
+                </div>
+            </section>
+            
             <!-- Configurações do Estabelecimento -->
             <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-4">
                 <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
@@ -206,7 +216,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Credenciais atualizadas com os dados do seu projeto: appdogarcon
+        // Credenciais do seu projeto: appdogarcon
         const firebaseConfig = {
             apiKey: "AIzaSyChOXPLuL3KF0b0EUqk-ZHgidWNHntrOUw",
             authDomain: "appdogarcon.firebaseapp.com",
@@ -224,6 +234,7 @@
         const imgPadraoComida = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=150";
         let cardapio = [];
         let listaQrsMesas = [];
+        let listaPedidosAdmin = [];
         let carrinho = {};
         let fotoItemBase64 = "";
 
@@ -254,7 +265,7 @@
             });
             renderizarCardapios();
         }, (error) => {
-            console.error("Erro na escuta do cardápio (Verifique as regras do Firestore):", error);
+            console.error("Erro na escuta do cardápio:", error);
         });
 
         // --- SINCRO EM TEMPO REAL: QR CODES / MESAS ---
@@ -265,7 +276,18 @@
             });
             renderizarListaQRCodes();
         }, (error) => {
-            console.error("Erro na escuta das mesas (Verifique as regras do Firestore):", error);
+            console.error("Erro na escuta das mesas:", error);
+        });
+
+        // --- SINCRO EM TEMPO REAL: PEDIDOS ENVIADOS AO ADMIN ---
+        onSnapshot(collection(db, "pedidos"), (snapshot) => {
+            listaPedidosAdmin = [];
+            snapshot.forEach(doc => {
+                listaPedidosAdmin.push({ id: doc.id, ...doc.data() });
+            });
+            renderizarPedidosAdmin();
+        }, (error) => {
+            console.error("Erro ao monitorar pedidos pendentes:", error);
         });
 
         // --- ADICIONAR ITEM AO FIREBASE ---
@@ -296,7 +318,7 @@
                 document.getElementById('form-item').reset();
                 document.getElementById('txt-foto-item').innerText = "Escolher Foto do Item";
                 fotoItemBase64 = "";
-                alert("Item salvo com sucesso no Firebase!");
+                alert("Item saved successfully to Firebase!");
             } catch (erro) {
                 console.error("Erro detalhado ao salvar item:", erro);
                 alert("Falha ao salvar no Firebase. Verifique o console do navegador e as Regras do seu Banco de Dados.");
@@ -329,7 +351,7 @@
             }
         }
 
-        // --- REMOVER ITEM DO FIREBASE ---
+        // --- REMOVER ITEM DO CARDÁPIO ---
         window.removerItemDoCardapio = async function(id) {
             if (confirm("Remover permanentemente este item do cardápio nuvem?")) {
                 try {
@@ -355,7 +377,58 @@
             }
         }
 
+        // --- CONCLUIR/REMOVER PEDIDO DO MONITOR ADMIN ---
+        window.concluirPedidoAdmin = async function(id) {
+            try {
+                await deleteDoc(doc(db, "pedidos", id));
+            } catch (erro) {
+                console.error("Erro ao dar baixa no pedido:", erro);
+            }
+        }
+
         // --- RENDERIZADORES ---
+        function renderizarPedidosAdmin() {
+            const painel = document.getElementById('painel-pedidos-admin');
+            if (!painel) return;
+            painel.innerHTML = '';
+
+            if (listaPedidosAdmin.length === 0) {
+                painel.innerHTML = `<p class="text-xs text-slate-400 italic py-3 text-center">Nenhum pedido pendente no momento.</p>`;
+                return;
+            }
+
+            // Ordena os pedidos pelo horário (mais recentes primeiro)
+            listaPedidosAdmin.sort((a,b) => (b.horario || 0) - (a.horario || 0));
+
+            listaPedidosAdmin.forEach(p => {
+                let itensHtml = '';
+                p.itens.forEach(i => {
+                    itensHtml += `<li class="text-xs text-slate-600 font-mono">${i.qtd}x ${i.nome}</li>`;
+                });
+
+                painel.innerHTML += `
+                    <div class="bg-amber-50/60 border border-amber-200 p-3 rounded-xl space-y-2 shadow-sm">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="bg-amber-500 text-white font-bold text-[10px] px-2 py-0.5 rounded-full uppercase">Mesa ${p.mesa}</span>
+                                <p class="text-[10px] text-slate-400 mt-1">${p.dataStr || ''}</p>
+                            </div>
+                            <button onclick="concluirPedidoAdmin('${p.id}')" class="bg-emerald-600 text-white font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-emerald-700 transition flex items-center gap-1">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir
+                            </button>
+                        </div>
+                        <ul class="list-disc list-inside bg-white border border-slate-100 p-2 rounded-lg space-y-0.5">
+                            ${itensHtml}
+                        </ul>
+                        <div class="flex justify-between items-center pt-1 border-t border-dashed border-amber-200">
+                            <span class="text-[11px] font-bold text-slate-500">TOTAL:</span>
+                            <span class="text-sm font-black text-slate-900">R$ ${parseFloat(p.total).toFixed(2)}</span>
+                        </div>
+                    </div>`;
+            });
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
         function renderizarListaQRCodes() {
             const boxLista = document.getElementById('lista-qrcodes');
             if(!boxLista) return;
@@ -457,6 +530,7 @@
             const txtCupom = document.getElementById('cupom-total');
             if(txtTotal) txtTotal.innerText = `R$ ${total.toFixed(2)}`;
             if(txtCupom) txtCupom.innerText = `R$ ${total.toFixed(2)}`;
+            return total;
         }
 
         window.carregarFotoDispositivo = function(event) {
@@ -496,7 +570,7 @@
             if(vCliente) vCliente.classList.toggle('hidden', v==='garcom'); 
         }
         
-        window.abrirFechamentoPedido = function() {
+        window.abrirFechamentoPedido = async function() {
             const cupomItens = document.getElementById('cupom-itens');
             const inputMesaActual = document.getElementById('mesa-atual-garcom');
             const mesaInput = inputMesaActual ? (inputMesaActual.value || 'N/A') : 'N/A';
@@ -506,11 +580,20 @@
             if(!cupomItens) return;
             cupomItens.innerHTML = '';
 
+            let arrayItensPedido = [];
             let temItens = false;
+
             for (const id in carrinho) {
                 const item = cardapio.find(i => i.id === id);
                 if(item){
                     temItens = true;
+                    arrayItensPedido.push({
+                        id: id,
+                        nome: item.nome,
+                        qtd: carrinho[id],
+                        precoUnitario: item.preco
+                    });
+
                     cupomItens.innerHTML += `
                         <div class="flex justify-between">
                             <span>${carrinho[id]}x ${item.nome}</span>
@@ -518,10 +601,28 @@
                         </div>`;
                 }
             }
+
             if(!temItens) {
                 alert("Seu carrinho está vazio!");
                 return;
             }
+
+            const totalCalculado = atualizarCalculoPrecoTotal();
+
+            // FUNÇÃO ADICIONADA: Envia o pedido estruturado diretamente para a nuvem Firebase
+            try {
+                await addDoc(collection(db, "pedidos"), {
+                    mesa: mesaInput,
+                    itens: arrayItensPedido,
+                    total: totalCalculado,
+                    horario: Date.now(),
+                    dataStr: new Date().toLocaleString('pt-BR')
+                });
+            } catch (erro) {
+                console.error("Erro ao transmitir pedido para o painel Admin:", erro);
+                alert("O pedido foi processado localmente, mas falhou ao ser enviado para a cozinha/admin.");
+            }
+
             const modal = document.getElementById('modal-fechamento');
             if(modal) modal.classList.remove('hidden');
         }
