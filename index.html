@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MenuGestão PWA</title>
+    <!-- Tailwind CSS para Design Moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Ícones Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Manifesto PWA -->
+    <link rel="manifest" href="manifest.json" id="pwa-manifest">
+    <style>
+        @media print {
+            body * { visibility: hidden; }
+            #secao-impressao, #secao-impressao * { visibility: visible; }
+            #secao-impressao { position: absolute; left: 0; top: 0; width: 58mm; font-family: monospace; font-size: 12px; }
+            .no-print { display: none !important; }
+        }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased pb-24">
+
+    <!-- App Bar -->
+    <header class="bg-white shadow-sm border-b border-slate-100 sticky top-0 z-40">
+        <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="relative w-10 h-10 rounded-full bg-slate-200 overflow-hidden border border-slate-300 flex items-center justify-center">
+                    <img id="app-logo" src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=100" alt="Logo" class="w-full h-full object-cover">
+                </div>
+                <div>
+                    <h1 id="nome-estabelecimento-txt" class="font-bold text-slate-900 leading-tight">Meu Restaurante</h1>
+                    <span class="text-xs text-emerald-600 flex items-center gap-1 font-medium">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Firebase Conectado
+                    </span>
+                </div>
+            </div>
+            
+            <select id="seletor-visao" onchange="alternarVisao(this.value)" class="bg-slate-100 text-xs font-semibold py-1.5 px-3 rounded-lg border-none focus:ring-2 focus:ring-indigo-500">
+                <option value="garcom">Garçom / Painel</option>
+                <option value="cliente">Cliente (Cardápio)</option>
+            </select>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto px-4 pt-6">
+
+        <!-- VISÃO: PAINEL GARÇOM / ADMIN -->
+        <div id="visao-garcom" class="space-y-6">
+            
+            <!-- Configurações do Estabelecimento -->
+            <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="settings" class="w-4 h-4"></i> Configuração do Painel
+                </h2>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Nome do Local</label>
+                        <input type="text" id="input-nome-estabelecimento" value="Meu Restaurante" oninput="atualizarNome(this.value)" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-600 mb-1">Foto de Perfil</label>
+                        <div class="flex items-center gap-2">
+                            <label for="input-foto-local" class="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 transition w-full justify-center">
+                                <i data-lucide="image-plus" class="w-4 h-4"></i> Escolher Imagem
+                            </label>
+                            <input type="file" id="input-foto-local" accept="image/*" onchange="carregarFotoDispositivo(event)" class="hidden">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Gerador Dinâmico e Histórico de QR Codes -->
+            <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="qr-code" class="w-4 h-4"></i> Gerenciador de QR Codes
+                </h2>
+                <div class="flex gap-2">
+                    <input type="number" id="qr-num-mesa" placeholder="Nº da Mesa" min="1" class="w-1/3 text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    <button type="button" onclick="adicionarMesaQRCode()" class="w-2/3 bg-slate-900 text-white text-sm font-semibold py-2 rounded-lg hover:bg-slate-800 transition flex items-center justify-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Gerar para Mesa
+                    </button>
+                </div>
+
+                <!-- Lista de QR Codes Ativos -->
+                <div class="space-y-2">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">Mesas Ativas no Firebase:</p>
+                    <div id="lista-qrcodes" class="space-y-2 max-h-60 overflow-y-auto custom-scroll pr-1">
+                        <!-- Inserido via Firebase -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Cadastrar Item -->
+            <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> Cadastrar Item no Cardápio
+                </h2>
+                <form id="form-item" onsubmit="adicionarItemCardapio(event)" class="space-y-3">
+                    <div>
+                        <input type="text" id="item-nome" placeholder="Nome do prato ou bebida" required class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="number" step="0.01" id="item-preco" placeholder="Preço" required class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500">
+                        <select id="item-categoria" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500">
+                            <option value="Comida">Comida</option>
+                            <option value="Bebida">Bebida</option>
+                            <option value="Sobremesa">Sobremesa</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="item-foto" class="flex items-center gap-2 bg-slate-50 border border-slate-200 border-dashed rounded-lg px-3 py-2 text-xs font-medium text-slate-600 cursor-pointer hover:bg-slate-100 transition justify-center">
+                            <i data-lucide="camera" class="w-4 h-4 text-slate-400"></i>
+                            <span id="txt-foto-item">Escolher Foto do Item</span>
+                        </label>
+                        <input type="file" id="item-foto" accept="image/*" onchange="atualizarNomeFotoItem(event)" class="hidden">
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-indigo-700 transition">
+                        Salvar no Firebase
+                    </button>
+                </form>
+            </section>
+
+            <!-- Painel de Pedidos do Garçom -->
+            <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="notebook-tabs" class="w-4 h-4"></i> Lançar Pedido / Cardápio
+                    </h2>
+                    <input type="number" id="mesa-atual-garcom" placeholder="Mesa" min="1" class="w-16 text-center text-sm font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg px-2 py-1">
+                </div>
+                <div id="lista-itens-garcom" class="divide-y divide-slate-100 max-h-72 overflow-y-auto custom-scroll pr-1"></div>
+            </section>
+        </div>
+
+        <!-- VISÃO: CLIENTE -->
+        <div id="visao-cliente" class="space-y-6 hidden">
+            <div class="bg-gradient-to-r from-indigo-600 to-violet-600 p-4 rounded-2xl text-white shadow-md">
+                <span class="text-xs bg-white/20 px-2.5 py-1 rounded-full font-medium">Autoatendimento</span>
+                <h2 class="text-xl font-bold mt-2">Faça seu pedido direto da mesa</h2>
+            </div>
+            <div id="lista-itens-cliente" class="space-y-3"></div>
+        </div>
+
+    </main>
+
+    <!-- Barra de Pedido Ativo -->
+    <div id="barra-pedido" class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-xl z-50 py-3 px-4">
+        <div class="max-w-md mx-auto flex items-center justify-between">
+            <div>
+                <span class="text-xs text-slate-400 font-medium block">Total Acumulado</span>
+                <span id="total-pedido-txt" class="text-xl font-black text-slate-900">R$ 0,00</span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="limparCarrinho()" class="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
+                <button onclick="abrirFechamentoPedido()" class="bg-emerald-600 text-white font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm">
+                    Confirmar <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Fechamento -->
+    <div id="modal-fechamento" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end justify-center hidden p-4">
+        <div class="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-lg text-slate-900">Pedido Confirmado!</h3>
+                <button onclick="fecharModal()" class="p-1 rounded-full bg-slate-100 text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <div id="secao-impressao" class="bg-amber-50/50 border border-amber-200/60 rounded-xl p-4 font-mono text-xs text-slate-800 space-y-3">
+                <div class="text-center border-b border-dashed border-slate-300 pb-2">
+                    <p class="font-bold text-sm uppercase" id="cupom-nome-estabelecimento">MEU RESTAURANTE</p>
+                    <p class="text-[10px] text-slate-500">Cacimba de Dentro - PB</p>
+                    <p id="cupom-data" class="text-[10px] text-slate-400 mt-1"></p>
+                </div>
+                <div class="font-bold py-1 border-b border-dashed border-slate-300 flex justify-between">
+                    <span id="cupom-mesa">MESA: 00</span>
+                    <span>Nº PEDIDO: #1002</span>
+                </div>
+                <div id="cupom-itens" class="space-y-1 py-2 border-b border-dashed border-slate-300"></div>
+                <div class="flex justify-between font-bold text-sm pt-1">
+                    <span>TOTAL:</span>
+                    <span id="cupom-total">R$ 0,00</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="window.print()" class="bg-slate-900 text-white font-semibold text-sm py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition">
+                    <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Nota
+                </button>
+                <button onclick="baixarNotaTxt()" class="bg-indigo-600 text-white font-semibold text-sm py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition">
+                    <i data-lucide="download" class="w-4 h-4"></i> Baixar Arquivo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= IMPORTS E ESCOPO DO FIREBASE SDK v10+ ================= -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Credenciais atualizadas com os dados do seu projeto: appdogarcon
+        const firebaseConfig = {
+            apiKey: "AIzaSyChOXPLuL3KF0b0EUqk-ZHgidWNHntrOUw",
+            authDomain: "appdogarcon.firebaseapp.com",
+            projectId: "appdogarcon",
+            storageBucket: "appdogarcon.firebasestorage.app",
+            messagingSenderId: "843719846950",
+            appId: "1:843719846950:web:6287572ec074cb3b61cae7"
+        };
+
+        // Inicializa o Firebase e vincula o Firestore
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- VARIÁVEIS DE ESTADO ---
+        const imgPadraoComida = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=150";
+        let cardapio = [];
+        let listaQrsMesas = [];
+        let carrinho = {};
+        let fotoItemBase64 = "";
+
+        // Captura automática de parâmetros da URL (?mesa=3)
+        window.addEventListener("DOMContentLoaded", () => {
+            const params = new URLSearchParams(window.location.search);
+            const mesaUrl = params.get('mesa');
+            const modeUrl = params.get('mode');
+
+            if (mesaUrl) {
+                const inputMesa = document.getElementById('mesa-atual-garcom');
+                if(inputMesa) inputMesa.value = mesaUrl;
+                if(modeUrl === 'cliente') {
+                    const seletor = document.getElementById('seletor-visao');
+                    if(seletor) seletor.value = 'cliente';
+                    alternarVisao('cliente');
+                }
+            }
+            const dataCupom = document.getElementById('cupom-data');
+            if(dataCupom) dataCupom.innerText = new Date().toLocaleString('pt-BR');
+        });
+
+        // --- SINCRO EM TEMPO REAL: CARDÁPIO ---
+        onSnapshot(collection(db, "cardapio"), (snapshot) => {
+            cardapio = [];
+            snapshot.forEach(doc => {
+                cardapio.push({ id: doc.id, ...doc.data() });
+            });
+            renderizarCardapios();
+        }, (error) => {
+            console.error("Erro na escuta do cardápio (Verifique as regras do Firestore):", error);
+        });
+
+        // --- SINCRO EM TEMPO REAL: QR CODES / MESAS ---
+        onSnapshot(collection(db, "mesas_qr"), (snapshot) => {
+            listaQrsMesas = [];
+            snapshot.forEach(doc => {
+                listaQrsMesas.push({ id: doc.id, ...doc.data() });
+            });
+            renderizarListaQRCodes();
+        }, (error) => {
+            console.error("Erro na escuta das mesas (Verifique as regras do Firestore):", error);
+        });
+
+        // --- ADICIONAR ITEM AO FIREBASE ---
+        window.adicionarItemCardapio = async function(e) {
+            if (e) e.preventDefault();
+            
+            const nomeInput = document.getElementById('item-nome');
+            const precoInput = document.getElementById('item-preco');
+            const categoriaInput = document.getElementById('item-categoria');
+
+            if (!nomeInput || !precoInput || !categoriaInput) {
+                alert("Erro interno: Campos do formulário não encontrados.");
+                return;
+            }
+
+            const nome = nomeInput.value.trim();
+            const preco = parseFloat(precoInput.value);
+            const categoria = categoriaInput.value;
+            const foto = fotoItemBase64 || imgPadraoComida;
+
+            if (!nome || isNaN(preco)) {
+                alert("Por favor, preencha o nome e um preço válido.");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "cardapio"), { nome, preco, category: categoria, foto });
+                document.getElementById('form-item').reset();
+                document.getElementById('txt-foto-item').innerText = "Escolher Foto do Item";
+                fotoItemBase64 = "";
+                alert("Item salvo com sucesso no Firebase!");
+            } catch (erro) {
+                console.error("Erro detalhado ao salvar item:", erro);
+                alert("Falha ao salvar no Firebase. Verifique o console do navegador e as Regras do seu Banco de Dados.");
+            }
+        }
+
+        // --- CRIAR QR CODE E ENVIAR AO FIREBASE ---
+        window.adicionarMesaQRCode = async function() {
+            const inputMesa = document.getElementById('qr-num-mesa');
+            if(!inputMesa) return;
+
+            const numMesa = inputMesa.value.trim();
+            if(!numMesa) {
+                alert("Por favor, digite o número da mesa!");
+                return;
+            }
+
+            if(listaQrsMesas.some(q => String(q.mesa) === String(numMesa))) {
+                alert(`A Mesa ${numMesa} já está ativa.`);
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "mesas_qr"), { mesa: numMesa });
+                inputMesa.value = '';
+                alert(`Mesa ${numMesa} gerada e salva no Firebase!`);
+            } catch (erro) {
+                console.error("Erro detalhado ao salvar mesa:", erro);
+                alert("Falha ao criar mesa. Verifique se as Regras do Firestore permitem gravação.");
+            }
+        }
+
+        // --- REMOVER ITEM DO FIREBASE ---
+        window.removerItemDoCardapio = async function(id) {
+            if (confirm("Remover permanentemente este item do cardápio nuvem?")) {
+                try {
+                    await deleteDoc(doc(db, "cardapio", id));
+                    if (carrinho[id]) {
+                        delete carrinho[id];
+                        atualizarCalculoPrecoTotal();
+                    }
+                } catch (erro) {
+                    console.error("Erro ao deletar item: ", erro);
+                }
+            }
+        }
+
+        // --- REMOVER QR CODE DO FIREBASE ---
+        window.removerQRCodeMesa = async function(id, numeroMesa) {
+            if(confirm(`Deseja desativar o QR Code da Mesa ${numeroMesa}?`)) {
+                try {
+                    await deleteDoc(doc(db, "mesas_qr", id));
+                } catch (erro) {
+                    console.error("Erro ao remover mesa: ", erro);
+                }
+            }
+        }
+
+        // --- RENDERIZADORES ---
+        function renderizarListaQRCodes() {
+            const boxLista = document.getElementById('lista-qrcodes');
+            if(!boxLista) return;
+            boxLista.innerHTML = '';
+
+            if(listaQrsMesas.length === 0) {
+                boxLista.innerHTML = `<p class="text-xs text-slate-400 italic py-2 text-center">Nenhum QR Code ativo no Firebase.</p>`;
+                return;
+            }
+
+            listaQrsMesas.sort((a, b) => parseInt(a.mesa) - parseInt(b.mesa));
+
+            listaQrsMesas.forEach(item => {
+                const urlLink = `${window.location.origin}${window.location.pathname}?mesa=${item.mesa}&mode=cliente`;
+                const srcFinal = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(urlLink)}`;
+
+                boxLista.innerHTML += `
+                    <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center justify-between gap-3">
+                        <div class="w-14 h-14 bg-white p-1 rounded-lg border border-slate-200 flex-shrink-0 flex items-center justify-center">
+                            <img src="${srcFinal}" class="w-full h-full object-contain" alt="Mesa ${item.mesa}">
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-slate-800">Mesa ${item.mesa}</p>
+                            <p class="text-[10px] text-indigo-600 truncate font-medium">Autoatendimento Firebase</p>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <a href="${srcFinal}" target="_blank" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 p-2 rounded-lg transition">
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                            </a>
+                            <button onclick="removerQRCodeMesa('${item.id}', '${item.mesa}')" class="bg-red-50 text-red-500 hover:bg-red-100 p-2 rounded-lg transition">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>`;
+            });
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function renderizarCardapios() {
+            const listaGarcom = document.getElementById('lista-itens-garcom');
+            const listaCliente = document.getElementById('lista-itens-cliente');
+            if(!listaGarcom || !listaCliente) return;
+            
+            listaGarcom.innerHTML = '';
+            listaCliente.innerHTML = '';
+
+            if(cardapio.length === 0) {
+                listaGarcom.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Nenhum item cadastrado no Firestore.</p>`;
+                return;
+            }
+
+            cardapio.forEach(item => {
+                const imagemExibir = item.foto || imgPadraoComida;
+                
+                listaGarcom.innerHTML += `
+                    <div class="flex items-center justify-between py-2 gap-2">
+                        <img src="${imagemExibir}" class="w-10 h-10 rounded-lg object-cover flex-shrink-0 border">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-sm truncate text-slate-800">${item.nome}</p>
+                            <p class="text-xs text-indigo-600 font-bold">R$ ${parseFloat(item.preco).toFixed(2)}</p>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="removerItemDoCardapio('${item.id}')" class="bg-red-50 text-red-500 p-1.5 rounded-lg"><i data-lucide="trash" class="w-4 h-4"></i></button>
+                            <button onclick="adicionarAoCarrinho('${item.id}')" class="bg-slate-100 p-1.5 rounded-lg"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>`;
+
+                const qtd = carrinho[item.id] || 0;
+                listaCliente.innerHTML += `
+                    <div class="bg-white p-3 rounded-xl border border-slate-100 flex items-center justify-between gap-3">
+                        <img src="${imagemExibir}" class="w-16 h-16 rounded-xl object-cover flex-shrink-0 border">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-bold text-sm text-slate-800 truncate">${item.nome}</h3>
+                            <p class="text-sm font-extrabold text-indigo-600">R$ ${parseFloat(item.preco).toFixed(2)}</p>
+                        </div>
+                        <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-lg flex-shrink-0">
+                            <button onclick="removerDoCarrinho('${item.id}')" class="px-2 font-bold text-slate-600">-</button>
+                            <span class="text-xs font-bold w-4 text-center">${qtd}</span>
+                            <button onclick="adicionarAoCarrinho('${item.id}')" class="px-2 font-bold text-slate-600">+</button>
+                        </div>
+                    </div>`;
+            });
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            atualizarCalculoPrecoTotal();
+        }
+
+        // --- SISTEMA DE LOGICA COMPLEMENTAR ---
+        window.adicionarAoCarrinho = function(id) { carrinho[id] = (carrinho[id] || 0) + 1; renderizarCardapios(); }
+        window.removerDoCarrinho = function(id) { if (carrinho[id] > 0) { carrinho[id]--; if (carrinho[id] === 0) delete carrinho[id]; } renderizarCardapios(); }
+        window.limparCarrinho = function() { carrinho = {}; renderizarCardapios(); }
+
+        function atualizarCalculoPrecoTotal() {
+            let total = 0;
+            for (const id in carrinho) { 
+                const item = cardapio.find(i => i.id === id);
+                if(item) total += item.preco * carrinho[id]; 
+            }
+            const txtTotal = document.getElementById('total-pedido-txt');
+            const txtCupom = document.getElementById('cupom-total');
+            if(txtTotal) txtTotal.innerText = `R$ ${total.toFixed(2)}`;
+            if(txtCupom) txtCupom.innerText = `R$ ${total.toFixed(2)}`;
+        }
+
+        window.carregarFotoDispositivo = function(event) {
+            const arquivo = event.target.files[0];
+            if (arquivo) {
+                const leitor = new FileReader();
+                leitor.onload = function(e) { 
+                    const logo = document.getElementById('app-logo');
+                    if(logo) logo.src = e.target.result; 
+                };
+                leitor.readAsDataURL(arquivo);
+            }
+        }
+
+        window.atualizarNomeFotoItem = function(event) {
+            const arquivo = event.target.files[0];
+            if (arquivo) {
+                const txtFoto = document.getElementById('txt-foto-item');
+                if(txtFoto) txtFoto.innerText = arquivo.name;
+                const leitor = new FileReader();
+                leitor.onload = function(e) { fotoItemBase64 = e.target.result; };
+                leitor.readAsDataURL(arquivo);
+            }
+        }
+
+        window.atualizarNome = function(nome) { 
+            const txtEst = document.getElementById('nome-estabelecimento-txt');
+            const txtCupomEst = document.getElementById('cupom-nome-estabelecimento');
+            if(txtEst) txtEst.innerText = nome; 
+            if(txtCupomEst) txtCupomEst.innerText = nome.toUpperCase();
+        }
+        
+        window.alternarVisao = function(v) { 
+            const vGarcom = document.getElementById('visao-garcom');
+            const vCliente = document.getElementById('visao-cliente');
+            if(vGarcom) vGarcom.classList.toggle('hidden', v==='cliente'); 
+            if(vCliente) vCliente.classList.toggle('hidden', v==='garcom'); 
+        }
+        
+        window.abrirFechamentoPedido = function() {
+            const cupomItens = document.getElementById('cupom-itens');
+            const inputMesaActual = document.getElementById('mesa-atual-garcom');
+            const mesaInput = inputMesaActual ? (inputMesaActual.value || 'N/A') : 'N/A';
+            
+            const cupomMesa = document.getElementById('cupom-mesa');
+            if(cupomMesa) cupomMesa.innerText = `MESA: ${mesaInput}`;
+            if(!cupomItens) return;
+            cupomItens.innerHTML = '';
+
+            let temItens = false;
+            for (const id in carrinho) {
+                const item = cardapio.find(i => i.id === id);
+                if(item){
+                    temItens = true;
+                    cupomItens.innerHTML += `
+                        <div class="flex justify-between">
+                            <span>${carrinho[id]}x ${item.nome}</span>
+                            <span>R$ ${(item.preco * carrinho[id]).toFixed(2)}</span>
+                        </div>`;
+                }
+            }
+            if(!temItens) {
+                alert("Seu carrinho está vazio!");
+                return;
+            }
+            const modal = document.getElementById('modal-fechamento');
+            if(modal) modal.classList.remove('hidden');
+        }
+        
+        window.fecharModal = function() { 
+            const modal = document.getElementById('modal-fechamento');
+            if(modal) modal.classList.add('hidden'); 
+        }
+        
+        window.baixarNotaTxt = function() {
+            const cupomEst = document.getElementById('cupom-nome-estabelecimento');
+            const cupomMesa = document.getElementById('cupom-mesa');
+            const cupomTotal = document.getElementById('cupom-total');
+
+            let textoCupom = `=== ${cupomEst ? cupomEst.innerText : 'PEDIDO'} ===\n`;
+            textoCupom += `${cupomMesa ? cupomMesa.innerText : 'MESA: N/A'}\n`;
+            textoCupom += `--------------------------\n`;
+            for (const id in carrinho) {
+                const item = cardapio.find(i => i.id === id);
+                if(item) textoCupom += `${carrinho[id]}x ${item.nome} - R$ ${(item.preco * carrinho[id]).toFixed(2)}\n`;
+            }
+            textoCupom += `--------------------------\n`;
+            textoCupom += `TOTAL: ${cupomTotal ? cupomTotal.innerText : 'R$ 0,00'}\n`;
+
+            const blob = new Blob([textoCupom], { type: "text/plain;charset=utf-8" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `pedido_realizado.txt`;
+            link.click();
+        }
+    </script>
+</body>
+</html>
