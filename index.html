@@ -51,7 +51,7 @@
         <!-- VISÃO: PAINEL GARÇOM / ADMIN -->
         <div id="visao-garcom" class="space-y-6">
             
-            <!-- SEÇÃO NOVA: Monitor de Pedidos em Tempo Real -->
+            <!-- Monitor de Pedidos em Tempo Real -->
             <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-4">
                 <h2 class="text-sm font-bold text-amber-600 uppercase tracking-wider flex items-center gap-2">
                     <i data-lucide="bell" class="w-4 h-4 animate-bounce"></i> Pedidos Pendentes (Admin)
@@ -80,6 +80,10 @@
                             <input type="file" id="input-foto-local" accept="image/*" onchange="carregarFotoDispositivo(event)" class="hidden">
                         </div>
                     </div>
+                    <!-- Botão para Salvar Configurações no Firebase -->
+                    <button type="button" onclick="salvarConfiguracoesEstabelecimento()" class="w-full bg-slate-900 text-white text-xs font-bold py-2 rounded-lg hover:bg-slate-800 transition flex items-center justify-center gap-2">
+                        <i data-lucide="save" class="w-4 h-4"></i> Salvar Configurações
+                    </button>
                 </div>
             </section>
 
@@ -175,46 +179,44 @@
         </div>
     </div>
 
-    <!-- Modal de Fechamento -->
-    <div id="modal-fechamento" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end justify-center hidden p-4">
-        <div class="bg-white w-full max-w-md rounded-t-2xl p-5 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center">
-                <h3 class="font-bold text-lg text-slate-900">Pedido Confirmado!</h3>
-                <button onclick="fecharModal()" class="p-1 rounded-full bg-slate-100 text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+    <!-- Modal de Confirmação (Visão do Cliente / Confirmação de Preparo) -->
+    <div id="modal-fechamento" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 text-center space-y-4 shadow-2xl">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                <i data-lucide="chef-hat" class="w-8 h-8 animate-pulse"></i>
             </div>
+            <h3 class="font-bold text-xl text-slate-900">Pedido Confirmado!</h3>
+            <p class="text-sm text-slate-600 font-medium px-4">
+                Seu pedido está sendo preparado e muito em breve chegará.
+            </p>
+            <button onclick="fecharModal()" class="w-full bg-slate-900 text-white font-semibold text-sm py-3 rounded-xl hover:bg-slate-800 transition">
+                Entendido
+            </button>
+        </div>
+    </div>
 
-            <div id="secao-impressao" class="bg-amber-50/50 border border-amber-200/60 rounded-xl p-4 font-mono text-xs text-slate-800 space-y-3">
-                <div class="text-center border-b border-dashed border-slate-300 pb-2">
-                    <p class="font-bold text-sm uppercase" id="cupom-nome-estabelecimento">MEU RESTAURANTE</p>
-                    <p class="text-[10px] text-slate-500">Cacimba de Dentro - PB</p>
-                    <p id="cupom-data" class="text-[10px] text-slate-400 mt-1"></p>
-                </div>
-                <div class="font-bold py-1 border-b border-dashed border-slate-300 flex justify-between">
-                    <span id="cupom-mesa">MESA: 00</span>
-                    <span>Nº PEDIDO: #1002</span>
-                </div>
-                <div id="cupom-itens" class="space-y-1 py-2 border-b border-dashed border-slate-300"></div>
-                <div class="flex justify-between font-bold text-sm pt-1">
-                    <span>TOTAL:</span>
-                    <span id="cupom-total">R$ 0,00</span>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <button onclick="window.print()" class="bg-slate-900 text-white font-semibold text-sm py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition">
-                    <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Nota
-                </button>
-                <button onclick="baixarNotaTxt()" class="bg-indigo-600 text-white font-semibold text-sm py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition">
-                    <i data-lucide="download" class="w-4 h-4"></i> Baixar Arquivo
-                </button>
-            </div>
+    <!-- Seção de Impressão Oculta (Usada apenas pela impressora térmica do Admin) -->
+    <div id="secao-impressao" class="hidden">
+        <div class="text-center pb-2" style="border-b: 1px dashed #000;">
+            <p class="font-bold uppercase" id="cupom-nome-estabelecimento">MEU RESTAURANTE</p>
+            <p style="font-size: 10px;">Cacimba de Dentro - PB</p>
+            <p id="cupom-data" style="font-size: 10px;"></p>
+        </div>
+        <div class="font-bold py-1 flex justify-between" style="border-b: 1px dashed #000;">
+            <span id="cupom-mesa">MESA: 00</span>
+            <span>PEDIDO WEB</span>
+        </div>
+        <div id="cupom-itens" class="py-2" style="border-b: 1px dashed #000; font-size: 11px;"></div>
+        <div class="flex justify-between font-bold pt-1">
+            <span>TOTAL:</span>
+            <span id="cupom-total">R$ 0,00</span>
         </div>
     </div>
 
     <!-- ================= IMPORTS E ESCOPO DO FIREBASE SDK v10+ ================= -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // Credenciais do seu projeto: appdogarcon
         const firebaseConfig = {
@@ -232,14 +234,33 @@
 
         // --- VARIÁVEIS DE ESTADO ---
         const imgPadraoComida = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=150";
+        const imgPadraoLogo = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=100";
         let cardapio = [];
         let listaQrsMesas = [];
         let listaPedidosAdmin = [];
         let carrinho = {};
         let fotoItemBase64 = "";
+        let fotoLogoBase64 = "";
 
-        // Captura automática de parâmetros da URL (?mesa=3)
+        // Captura automática de parâmetros da URL (?mesa=3) e escuta em tempo real da logo/nome do Firebase
         window.addEventListener("DOMContentLoaded", () => {
+            // Monitora em tempo real os dados globais do restaurante no Firebase
+            onSnapshot(doc(db, "configuracoes", "estabelecimento"), (snapshot) => {
+                if(snapshot.exists()) {
+                    const dados = snapshot.data();
+                    if(dados.nome) {
+                        const inputEst = document.getElementById('input-nome-estabelecimento');
+                        if (inputEst) inputEst.value = dados.nome;
+                        atualizarNome(dados.nome);
+                    }
+                    if(dados.logo) {
+                        const logoImg = document.getElementById('app-logo');
+                        if (logoImg) logoImg.src = dados.logo;
+                        fotoLogoBase64 = dados.logo;
+                    }
+                }
+            });
+
             const params = new URLSearchParams(window.location.search);
             const mesaUrl = params.get('mesa');
             const modeUrl = params.get('mode');
@@ -256,6 +277,32 @@
             const dataCupom = document.getElementById('cupom-data');
             if(dataCupom) dataCupom.innerText = new Date().toLocaleString('pt-BR');
         });
+
+        // --- SALVAR CONFIGURAÇÕES DO ESTABELECIMENTO NO FIREBASE ---
+        window.salvarConfiguracoesEstabelecimento = async function() {
+            const inputNome = document.getElementById('input-nome-estabelecimento');
+            if (!inputNome) return;
+            
+            const nomeStr = inputNome.value.trim();
+            if (!nomeStr) {
+                alert("Por favor, digite o nome do restaurante antes de salvar.");
+                return;
+            }
+
+            const logoSalvar = fotoLogoBase64 || imgPadraoLogo;
+
+            try {
+                // Salva permanentemente no documento fixo do Firestore
+                await setDoc(doc(db, "configuracoes", "estabelecimento"), {
+                    nome: nomeStr,
+                    logo: logoSalvar
+                });
+                alert("Configurações salvas no Firebase com sucesso!");
+            } catch (erro) {
+                console.error("Erro ao salvar configurações:", erro);
+                alert("Erro ao salvar dados no Firebase.");
+            }
+        }
 
         // --- SINCRO EM TEMPO REAL: CARDÁPIO ---
         onSnapshot(collection(db, "cardapio"), (snapshot) => {
@@ -298,10 +345,7 @@
             const precoInput = document.getElementById('item-preco');
             const categoriaInput = document.getElementById('item-categoria');
 
-            if (!nomeInput || !precoInput || !categoriaInput) {
-                alert("Erro interno: Campos do formulário não encontrados.");
-                return;
-            }
+            if (!nomeInput || !precoInput || !categoriaInput) return;
 
             const nome = nomeInput.value.trim();
             const preco = parseFloat(precoInput.value);
@@ -318,10 +362,9 @@
                 document.getElementById('form-item').reset();
                 document.getElementById('txt-foto-item').innerText = "Escolher Foto do Item";
                 fotoItemBase64 = "";
-                alert("Item saved successfully to Firebase!");
+                alert("Item cadastrado com sucesso!");
             } catch (erro) {
-                console.error("Erro detalhado ao salvar item:", erro);
-                alert("Falha ao salvar no Firebase. Verifique o console do navegador e as Regras do seu Banco de Dados.");
+                console.error(erro);
             }
         }
 
@@ -331,23 +374,18 @@
             if(!inputMesa) return;
 
             const numMesa = inputMesa.value.trim();
-            if(!numMesa) {
-                alert("Por favor, digite o número da mesa!");
-                return;
-            }
+            if(!numMesa) return;
 
             if(listaQrsMesas.some(q => String(q.mesa) === String(numMesa))) {
-                alert(`A Mesa ${numMesa} já está ativa.`);
+                alert(`A Mesa ${numMesa} já está activa.`);
                 return;
             }
 
             try {
                 await addDoc(collection(db, "mesas_qr"), { mesa: numMesa });
                 inputMesa.value = '';
-                alert(`Mesa ${numMesa} gerada e salva no Firebase!`);
             } catch (erro) {
-                console.error("Erro detalhado ao salvar mesa:", erro);
-                alert("Falha ao criar mesa. Verifique se as Regras do Firestore permitem gravação.");
+                console.error(erro);
             }
         }
 
@@ -361,7 +399,7 @@
                         atualizarCalculoPrecoTotal();
                     }
                 } catch (erro) {
-                    console.error("Erro ao deletar item: ", erro);
+                    console.error(erro);
                 }
             }
         }
@@ -372,9 +410,37 @@
                 try {
                     await deleteDoc(doc(db, "mesas_qr", id));
                 } catch (erro) {
-                    console.error("Erro ao remover mesa: ", erro);
+                    console.error(erro);
                 }
             }
+        }
+
+        // --- DISPARAR IMPRESSÃO DIRETA DO PAINEL ADMIN ---
+        window.imprimirPedidoPainel = function(id) {
+            const pedido = listaPedidosAdmin.find(p => p.id === id);
+            if (!pedido) return;
+
+            const cupomMesa = document.getElementById('cupom-mesa');
+            const cupomItens = document.getElementById('cupom-itens');
+            const cupomTotal = document.getElementById('cupom-total');
+            const cupomData = document.getElementById('cupom-data');
+
+            if(cupomMesa) cupomMesa.innerText = `MESA: ${pedido.mesa}`;
+            if(cupomData) cupomData.innerText = pedido.dataStr || new Date().toLocaleString('pt-BR');
+            if(cupomTotal) cupomTotal.innerText = `R$ ${parseFloat(pedido.total).toFixed(2)}`;
+            
+            if(cupomItens) {
+                cupomItens.innerHTML = '';
+                pedido.itens.forEach(i => {
+                    cupomItens.innerHTML += `
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>${i.qtd}x ${i.nome}</span>
+                            <span>R$ ${(i.precoUnitario * i.qtd).toFixed(2)}</span>
+                        </div>`;
+                });
+            }
+
+            window.print();
         }
 
         // --- CONCLUIR/REMOVER PEDIDO DO MONITOR ADMIN ---
@@ -382,7 +448,7 @@
             try {
                 await deleteDoc(doc(db, "pedidos", id));
             } catch (erro) {
-                console.error("Erro ao dar baixa no pedido:", erro);
+                console.error(erro);
             }
         }
 
@@ -397,7 +463,6 @@
                 return;
             }
 
-            // Ordena os pedidos pelo horário (mais recentes primeiro)
             listaPedidosAdmin.sort((a,b) => (b.horario || 0) - (a.horario || 0));
 
             listaPedidosAdmin.forEach(p => {
@@ -413,9 +478,14 @@
                                 <span class="bg-amber-500 text-white font-bold text-[10px] px-2 py-0.5 rounded-full uppercase">Mesa ${p.mesa}</span>
                                 <p class="text-[10px] text-slate-400 mt-1">${p.dataStr || ''}</p>
                             </div>
-                            <button onclick="concluirPedidoAdmin('${p.id}')" class="bg-emerald-600 text-white font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-emerald-700 transition flex items-center gap-1">
-                                <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir
-                            </button>
+                            <div class="flex gap-1">
+                                <button onclick="imprimirPedidoPainel('${p.id}')" class="bg-slate-800 text-white font-semibold text-xs px-2 py-1 rounded-lg hover:bg-slate-900 transition flex items-center gap-1">
+                                    <i data-lucide="printer" class="w-3 h-3"></i> Imprimir
+                                </button>
+                                <button onclick="concluirPedidoAdmin('${p.id}')" class="bg-emerald-600 text-white font-semibold text-xs px-2.5 py-1 rounded-lg hover:bg-emerald-700 transition flex items-center gap-1">
+                                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Concluir
+                                </button>
+                            </div>
                         </div>
                         <ul class="list-disc list-inside bg-white border border-slate-100 p-2 rounded-lg space-y-0.5">
                             ${itensHtml}
@@ -475,10 +545,7 @@
             listaGarcom.innerHTML = '';
             listaCliente.innerHTML = '';
 
-            if(cardapio.length === 0) {
-                listaGarcom.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Nenhum item cadastrado no Firestore.</p>`;
-                return;
-            }
+            if(cardapio.length === 0) return;
 
             cardapio.forEach(item => {
                 const imagemExibir = item.foto || imgPadraoComida;
@@ -527,9 +594,7 @@
                 if(item) total += item.preco * carrinho[id]; 
             }
             const txtTotal = document.getElementById('total-pedido-txt');
-            const txtCupom = document.getElementById('cupom-total');
             if(txtTotal) txtTotal.innerText = `R$ ${total.toFixed(2)}`;
-            if(txtCupom) txtCupom.innerText = `R$ ${total.toFixed(2)}`;
             return total;
         }
 
@@ -540,6 +605,7 @@
                 leitor.onload = function(e) { 
                     const logo = document.getElementById('app-logo');
                     if(logo) logo.src = e.target.result; 
+                    fotoLogoBase64 = e.target.result;
                 };
                 leitor.readAsDataURL(arquivo);
             }
@@ -571,15 +637,9 @@
         }
         
         window.abrirFechamentoPedido = async function() {
-            const cupomItens = document.getElementById('cupom-itens');
             const inputMesaActual = document.getElementById('mesa-atual-garcom');
             const mesaInput = inputMesaActual ? (inputMesaActual.value || 'N/A') : 'N/A';
             
-            const cupomMesa = document.getElementById('cupom-mesa');
-            if(cupomMesa) cupomMesa.innerText = `MESA: ${mesaInput}`;
-            if(!cupomItens) return;
-            cupomItens.innerHTML = '';
-
             let arrayItensPedido = [];
             let temItens = false;
 
@@ -593,12 +653,6 @@
                         qtd: carrinho[id],
                         precoUnitario: item.preco
                     });
-
-                    cupomItens.innerHTML += `
-                        <div class="flex justify-between">
-                            <span>${carrinho[id]}x ${item.nome}</span>
-                            <span>R$ ${(item.preco * carrinho[id]).toFixed(2)}</span>
-                        </div>`;
                 }
             }
 
@@ -609,7 +663,7 @@
 
             const totalCalculado = atualizarCalculoPrecoTotal();
 
-            // FUNÇÃO ADICIONADA: Envia o pedido estruturado diretamente para a nuvem Firebase
+            // Envia o pedido estruturado diretamente para a nuvem Firebase
             try {
                 await addDoc(collection(db, "pedidos"), {
                     mesa: mesaInput,
@@ -618,11 +672,17 @@
                     horario: Date.now(),
                     dataStr: new Date().toLocaleString('pt-BR')
                 });
+                
+                // Limpa o carrinho após o envio com sucesso
+                carrinho = {};
+                renderizarCardapios();
             } catch (erro) {
                 console.error("Erro ao transmitir pedido para o painel Admin:", erro);
-                alert("O pedido foi processado localmente, mas falhou ao ser enviado para a cozinha/admin.");
+                alert("Ocorreu um erro ao enviar o pedido para o sistema.");
+                return;
             }
 
+            // Abre o modal simplificado com a mensagem de preparo para o cliente
             const modal = document.getElementById('modal-fechamento');
             if(modal) modal.classList.remove('hidden');
         }
@@ -630,28 +690,6 @@
         window.fecharModal = function() { 
             const modal = document.getElementById('modal-fechamento');
             if(modal) modal.classList.add('hidden'); 
-        }
-        
-        window.baixarNotaTxt = function() {
-            const cupomEst = document.getElementById('cupom-nome-estabelecimento');
-            const cupomMesa = document.getElementById('cupom-mesa');
-            const cupomTotal = document.getElementById('cupom-total');
-
-            let textoCupom = `=== ${cupomEst ? cupomEst.innerText : 'PEDIDO'} ===\n`;
-            textoCupom += `${cupomMesa ? cupomMesa.innerText : 'MESA: N/A'}\n`;
-            textoCupom += `--------------------------\n`;
-            for (const id in carrinho) {
-                const item = cardapio.find(i => i.id === id);
-                if(item) textoCupom += `${carrinho[id]}x ${item.nome} - R$ ${(item.preco * carrinho[id]).toFixed(2)}\n`;
-            }
-            textoCupom += `--------------------------\n`;
-            textoCupom += `TOTAL: ${cupomTotal ? cupomTotal.innerText : 'R$ 0,00'}\n`;
-
-            const blob = new Blob([textoCupom], { type: "text/plain;charset=utf-8" });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `pedido_realizado.txt`;
-            link.click();
         }
     </script>
 </body>
