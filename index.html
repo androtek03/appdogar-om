@@ -300,7 +300,7 @@
                 alert("Configurações salvas no Firebase com sucesso!");
             } catch (erro) {
                 console.error("Erro ao salvar configurações:", erro);
-                alert("Erro ao salvar dados no Firebase.");
+                alert("Erro ao salvar dados no Firebase. Certifique-se de que a imagem não seja pesada demais.");
             }
         }
 
@@ -598,14 +598,46 @@
             return total;
         }
 
+        // Função interna auxiliar para comprimir imagens pesadas e evitar o erro do Firebase (Limite de 1MB por documento)
+        function comprimirImagemCanvas(imagemMestra, larguraMax = 200, alturaMax = 200) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = imagemMestra;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    let largura = img.width;
+                    let altura = img.height;
+
+                    if (largura > altura) {
+                        if (largura > larguraMax) {
+                            altura *= larguraMax / largura;
+                            largura = larguraMax;
+                        }
+                    } else {
+                        if (altura > alturaMax) {
+                            largura *= alturaMax / altura;
+                            altura = alturaMax;
+                        }
+                    }
+                    canvas.width = largura;
+                    canvas.height = altura;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, largura, altura);
+                    resolve(canvas.toDataURL('image/jpeg', 0.7)); // Retorna a imagem super leve comprimida
+                };
+            });
+        }
+
         window.carregarFotoDispositivo = function(event) {
             const arquivo = event.target.files[0];
             if (arquivo) {
                 const leitor = new FileReader();
-                leitor.onload = function(e) { 
+                leitor.onload = async function(e) { 
+                    // Aplica a compressão automática para evitar falha no salvamento
+                    const fotoComprimida = await comprimirImagemCanvas(e.target.result, 180, 180);
                     const logo = document.getElementById('app-logo');
-                    if(logo) logo.src = e.target.result; 
-                    fotoLogoBase64 = e.target.result;
+                    if(logo) logo.src = fotoComprimida; 
+                    fotoLogoBase64 = fotoComprimida;
                 };
                 leitor.readAsDataURL(arquivo);
             }
@@ -617,7 +649,10 @@
                 const txtFoto = document.getElementById('txt-foto-item');
                 if(txtFoto) txtFoto.innerText = arquivo.name;
                 const leitor = new FileReader();
-                leitor.onload = function(e) { fotoItemBase64 = e.target.result; };
+                leitor.onload = async function(e) { 
+                    // Comprime também a foto do prato/bebida
+                    fotoItemBase64 = await comprimirImagemCanvas(e.target.result, 240, 240); 
+                };
                 leitor.readAsDataURL(arquivo);
             }
         }
