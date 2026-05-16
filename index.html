@@ -11,22 +11,34 @@
     <!-- Manifesto PWA -->
     <link rel="manifest" href="manifest.json" id="pwa-manifest">
     <style>
-        /* Ajuste do fluxo de tela vs impressão para evitar páginas em branco */
+        /* Oculta a seção de impressão na tela normal */
         #secao-impressao { display: none; }
         
         @media print {
-            body * { visibility: hidden; }
-            #secao-impressao, #secao-impressao * { visibility: visible; }
-            #secao-impressao { 
+            /* Esconde absolutamente tudo que está dentro do body */
+            body > * { display: none !important; }
+            
+            /* Força apenas a seção de cupom a aparecer no PDF/Impressão */
+            #secao-impressao, #secao-impressao * { 
                 display: block !important; 
-                position: absolute; 
+                visibility: visible !important; 
+            }
+            
+            #secao-impressao { 
+                position: relative; 
                 left: 0; 
                 top: 0; 
                 width: 58mm; 
                 font-family: monospace; 
                 font-size: 12px; 
+                margin: 0 auto;
             }
-            .no-print { display: none !important; }
+            
+            /* Ajustes flexíveis dentro do cupom para o PDF */
+            #secao-impressao .flex {
+                display: flex !important;
+                justify-content: space-between !important;
+            }
         }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -444,7 +456,7 @@
                 cupomItens.innerHTML = '';
                 pedido.itens.forEach(i => {
                     cupomItens.innerHTML += `
-                        <div style="display: flex; justify-content: space-between;">
+                        <div class="flex" style="display: flex; justify-content: space-between;">
                             <span>${i.qtd}x ${i.nome}</span>
                             <span>R$ ${(i.precoUnitario * i.qtd).toFixed(2)}</span>
                         </div>`;
